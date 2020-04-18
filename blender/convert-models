@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# to inspect commands when running blender, from the python console
+# bpy.app.debug_wm = True
+
+FILES="terrain skate frame skydome mast-and-sail BuoyYellow BuoyOrange"
+
+for f in $FILES; do
+    cat <<EOF | blender --background --python-console
+import bpy
+import time
+bpy.ops.wm.open_mainfile(filepath="${f}.blend")
+bpy.ops.export_scene.x(filepath="${f}.x", SelectedOnly=False)
+EOF
+
+done
+
+# these have various scaling/transform needs
+x2egg -TA -90,0,1,0 -TT 0,-0.024818,0 -TS 2500 -o terrain.egg terrain.x 
+x2egg -o skydome.egg skydome.x
+x2egg -TA 0,0,1,0 -o skate.egg skate.x
+x2egg -TA -90,0,1,0 -TT -2.8,-0.5,0 -o frame.egg frame.x
+x2egg -TT 0,0.8,0 -TA 0,0,1,0 -o mast-and-sail.egg mast-and-sail.x
+x2egg -o BuoyYellow.egg BuoyYellow.x
+x2egg -o BuoyOrange.egg BuoyOrange.x
+x2egg -TS 4 -o "Pirate Ship.egg" "Pirate Ship.x"

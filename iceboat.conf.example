@@ -1,0 +1,5 @@
+[server]
+url = ws://127.0.0.1:8300
+
+[player]
+name = student
