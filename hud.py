@@ -107,17 +107,17 @@ class Hud(DirectFrame):
                 pos=Vec3(-1.35,-0.45),
                 frameSize = (0, 1.85, 0, 0.1),
                 frameColor = (1, 1, 1, 0.2))
-        
-        '''self.NextMark_display = OnscreenText(
+        '''
+        self.NextMark_display = OnscreenText(
                 text="", pos=(0.05, 0.03), scale=0.05,
                 fg=(1,1,0,1), align=TextNode.ALeft,
                 parent=self.tkl)
-
-        self.iformation_display = OnscreenText(
+        '''
+        self.information_display = OnscreenText(
                 text="", pos=(0.6, 0.03), scale=0.05,
                 fg=(1,1,0,1), align=TextNode.ALeft,
                 parent=self.tkl)
-        '''
+
 
         # vehicle speed display, fixed (easy) number
         self.speed_display = OnscreenText(
@@ -747,19 +747,19 @@ class Hud(DirectFrame):
                 psi_VMG_l = psia - TackAngle/2 + 360
             else:
                 psi_VMG_l = psia - TackAngle/2
-            #self.information_display.text = "First set the sail = 0. Then control the tiller."
+            self.information_display.text = "First set the sail = 0. Then control the tiller."
         elif Mode == 2 or Mode == 4:        # DownWind(reaching)
             ds_VMG_l = 60
             ds_VMG_r = -60
             psi_VMG_l = psim
             psi_VMG_r = psim
-            #self.information_display.text = "First set the tiller to the Mark. Then control the sail."
+            self.information_display.text = "First set the tiller to the Mark. Then control the sail."
         else:                               # Abeam
             ds_VMG_l = AOA - 30
             ds_VMG_r = AOA + 30
             psi_VMG_l = psim
             psi_VMG_r = psim
-            #self.information_display.text = "First set the tiller to the Mark. Then control the sail."
+            self.information_display.text = "First set the tiller to the Mark. Then control the sail."
             
         self.Vr_display.text = "{:2.1f}" .format(Vr)
         self.ds_VMG_l_display.text = "{:2.0f}" .format(ds_VMG_l)
