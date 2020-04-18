@@ -328,6 +328,204 @@ class Hud(DirectFrame):
         self.compass_rose.setScale(0.2)
         self.compass_rose.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
         
+        # Speed Rose
+        speed = LineSegs("speed")
+        speed.setColor(LColor(1, 1, 1, 1))
+        speed.setThickness(2.0)
+        
+        # speed rose lines
+        for i in range(0,360,90):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            speed.moveTo(pnt*0.75)
+            speed.drawTo(pnt)
+            for j in range(10,90,9):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                speed.moveTo(pnt*0.85)
+                speed.drawTo(pnt)
+                
+        # create and connect this to a new speed rose "node"
+        self.speed_rose = NodePath("speed indicator")
+        self.speed_rose.attachNewNode(speed.create())
+        
+        # now connect the compass itself to the 2d window
+        self.speed_rose.reparentTo(myRender2d)
+
+        for l, angle in [("0", 0), ("10", 90), 
+                         ("20", 180), ("30", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the speed rose as a whole
+            piv.reparentTo(self.speed_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.2*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.speed_rose.setScale(0.2)
+        self.speed_rose.setPos(Vec3(-1.1,-0.65))
+
+        # Speed Indicator
+        speed_indicator = LineSegs("speed_indicator")
+        speed_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        speed_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        speed_indicator.moveTo(0.0)
+        speed_indicator.drawTo(pnt)
+
+        self.speed_arrow = NodePath("speed_arrow")
+        self.speed_arrow.attachNewNode(speed_indicator.create())
+
+        self.speed_arrow.reparentTo(myRender2d)
+
+        self.speed_arrow.setScale(0.4)
+        self.speed_arrow.setPos(Vec3(-1.1,-0.65))
+
+         # Sail Rose
+        sail = LineSegs("sail")
+        sail.setColor(LColor(1, 1, 1, 1))
+        sail.setThickness(2.0)
+        
+        # sail rose lines
+        for i in range(0,360,90):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            sail.moveTo(pnt*0.75)
+            sail.drawTo(pnt)
+            for j in range(9,90,9):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                sail.moveTo(pnt*0.85)
+                sail.drawTo(pnt)
+                
+        # create and connect this to a new sail rose "node"
+        self.sail_rose = NodePath("sail indicator")
+        self.sail_rose.attachNewNode(sail.create())
+        
+        # now connect the compass itself to the 2d window
+        self.sail_rose.reparentTo(myRender2d)
+
+        for l, angle in [("- 0 +", 0), ("30", 90), 
+                         ("60", 180), ("30", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the sail rose as a whole
+            piv.reparentTo(self.sail_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.15*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.sail_rose.setScale(0.2)
+        self.sail_rose.setPos(Vec3(-0.65,-0.65))
+
+        # sail Indicator
+        sail_indicator = LineSegs("sail_indicator")
+        sail_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        sail_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        sail_indicator.moveTo(0.0)
+        sail_indicator.drawTo(pnt)
+
+        self.sail_arrow = NodePath("sail_arrow")
+        self.sail_arrow.attachNewNode(sail_indicator.create())
+
+        self.sail_arrow.reparentTo(myRender2d)
+
+        self.sail_arrow.setScale(0.4)
+        self.sail_arrow.setPos(Vec3(-0.65,-0.65))
+
+        # tiller Rose
+        tiller = LineSegs("tiller")
+        tiller.setColor(LColor(1, 1, 1, 1))
+        tiller.setThickness(2.0)
+        
+        # tiller rose lines
+        for i in range(0,360,90):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            tiller.moveTo(pnt*0.75)
+            tiller.drawTo(pnt)
+            for j in range(15,90,15):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                tiller.moveTo(pnt*0.85)
+                tiller.drawTo(pnt)
+                
+        # create and connect this to a new tiller rose "node"
+        self.tiller_rose = NodePath("tiller indicator")
+        self.tiller_rose.attachNewNode(tiller.create())
+        
+        # now connect the compass itself to the 2d window
+        self.tiller_rose.reparentTo(myRender2d)
+
+        for l, angle in [("0", 0), ("14.3", 90), 
+                         ("28.6", 180), ("18", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the tiller rose as a whole
+            piv.reparentTo(self.tiller_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.2*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.tiller_rose.setScale(0.2)
+        self.tiller_rose.setPos(Vec3(-0.15,-0.65))
+
+        # tiller Indicator
+        tiller_indicator = LineSegs("tiller_indicator")
+        tiller_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        tiller_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        tiller_indicator.moveTo(0.0)
+        tiller_indicator.drawTo(pnt)
+
+        self.tiller_arrow = NodePath("tiller_arrow")
+        self.tiller_arrow.attachNewNode(tiller_indicator.create())
+
+        self.tiller_arrow.reparentTo(myRender2d)
+
+        self.tiller_arrow.setScale(0.4)
+        self.tiller_arrow.setPos(Vec3(-0.15,-0.65))
+
         # boat icon
         boat = LineSegs("boat")
         boat.setColor(LColor(.7,.7,.7,1))
@@ -628,6 +826,16 @@ class Hud(DirectFrame):
         self.compass_sail.setHpr(0,0, 180+ds) # get the true sail direction
         self.compass_sail.setScale(0.2)
         
+        # update the sail indicator on compass rotation
+        self.speed_arrow.setHpr(0,0, V*9)
+        # update the sail indicator on compass rotation
+        self.sail_arrow.setHpr(0,0, ds*pi)
+        # update the sail indicator on compass rotation
+        self.tiller_arrow.setHpr(0,0, self.tiller_gui['value']*360)
+        t_a = self.tiller_gui['value']*180/pi
+        s_a = V*9
+        print("sail: %.4f" %ds,"  tiller: %.4f" %t_a,"  speed: %.4f" %s_a,"  V: %.4f" %V)
+
         # update the ref indicator on compass rotation
         #self.compass_ref.setHpr(0,0, 180+ds) # get the true ref direction
         #self.compass_ref.setScale(0.2)
@@ -659,7 +867,7 @@ class Hud(DirectFrame):
         self.display_mark2.setPos(Vec3(mark2_x,mark2_y))
         self.display_mark3.setPos(Vec3(mark3_x,mark3_y))
         self.display_goal.setPos(Vec3(goal_x,goal_y))
-        print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
+        #print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
         
         #print("marklist len: ", len(self.marklist))
         """
