@@ -82,27 +82,30 @@ class Hud(DirectFrame):
                 pos=Vec3(0.52,-0.3),
                 frameSize = (0, 0.13, 0, 0.08),
                 frameColor = (1, 0.75, 0, 1))
+        '''
         self.speed_display = OnscreenText(
                 text="Tack", pos=(0.058, 0.03), scale=0.05,
                 fg=(0,0,0,1), align=TextNode.ACenter,
                 parent=self.tkl)
-        
+        '''
         self.tkr = DirectFrame(
                 pos=Vec3(1.18,-0.3),
                 frameSize = (0, 0.13, 0, 0.08),
                 frameColor = (0.4, 0.4, 0.4, 1))
+        '''
         self.speed_display = OnscreenText(
                 text="Tack", pos=(0.058, 0.03), scale=0.05,
                 fg=(0,0,0,1), align=TextNode.ACenter,
                 parent=self.tkr)
-       
+       '''
         
         # Information Text (by MASA, 04/17/2020) 
+        '''
         self.speed_display = OnscreenText(
                 text="Blanket", pos=(0.4, 0.7), scale=0.06,
                 fg=(0,1,0,0.8), align=TextNode.ACenter,
                 parent=self.mp)
-        
+        '''
         self.tkl = DirectFrame(
                 pos=Vec3(-1.35,-0.45),
                 frameSize = (0, 1.85, 0, 0.1),
@@ -120,8 +123,9 @@ class Hud(DirectFrame):
 
 
         # vehicle speed display, fixed (easy) number
+        
         self.speed_display = OnscreenText(
-                text="0.0", pos=(0.25, 0.29), scale=0.07,    #(by MASA, 04/17/2020)
+                text="0.0 kts", pos=(0.25, 0.29), scale=0.07,    #(by MASA, 04/17/2020)
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
@@ -813,7 +817,7 @@ class Hud(DirectFrame):
 
         # update the compass rotation, and set the speed text
         self.compass_rose.setHpr(0, 0, -psi)
-        self.speed_display.text = "{:2.1f}".format(V)
+        self.speed_display.text = "{:2.1f} kts".format(V)
         self.sail_display.text = "{:2.0f}" .format(ds)
         #self.ref_display.text = "ref:{:2.0f} deg" .format(abs(psiw-30))
         self.tiller_display.text = "{:2.0f}" .format(psi)
