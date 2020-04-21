@@ -16,6 +16,10 @@ from panda3d.core import \
 from math import pi, sin, cos, sqrt, atan, asin, acos, atan2
 from numpy import degrees, deg2rad, radians
 
+import numpy as np
+from scipy import interpolate
+import csv
+
 # LineSegs
 
 class Hud(DirectFrame):
@@ -668,6 +672,27 @@ class Hud(DirectFrame):
         self.display_goal.setScale(0.01)
         self.display_goal.setPos(Vec3(0.0,0.0))
 
+        # get the cl alpha curve for the sail
+        clcda = csv.reader(open('cl-alpha.csv'))
+        clcda.__next__()   # skip header
+        alpha=[]
+        cl=[]
+        for row in clcda:
+            alpha.append(row[0])
+            cl.append(row[1])
+        self.cl_alpha = interpolate.splrep(alpha, cl)
+        
+        # and the cd alpha curve
+        clcda = csv.reader(open('cd-alpha.csv'))
+        clcda.__next__()
+        alpha=[]
+        cd=[]
+        for row in clcda:
+            alpha.append(row[0])
+            cd.append(row[1])
+        self.cd_alpha = interpolate.splrep(alpha, cd)
+        self.doprint = -30
+
         # list of race marks
         # (type: '+'/'-' : round clockwise, counterclockwise
         #        'a'     : avoid (penalty)
@@ -716,7 +741,6 @@ class Hud(DirectFrame):
         float [deg]
             Mainsheet commanded angle.
         '''
-
         
         # Change the range, 0~360, of Heading(psi) and the relative wind direction 
         if psi < 0:
@@ -803,7 +827,7 @@ class Hud(DirectFrame):
         self.display_mark2.setPos(Vec3(mark2_x,mark2_y))
         self.display_mark3.setPos(Vec3(mark3_x,mark3_y))
         self.display_goal.setPos(Vec3(goal_x,goal_y))
-        print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
+        #print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
            
 
         ############################################
@@ -812,7 +836,48 @@ class Hud(DirectFrame):
         
         # Still testing in MATLAB, will update soon!!!
 
+        m = 250
+        rho = 1.225
+        S = 6
+        g=9.81
+        gamma = 0.3897
 
+        alpha = np.deg2rad(360-psiw-ds)
+        
+        if alpha > np.pi: alpha -= np.pi
+        if -alpha < -np.pi: alpha += np.pi
+
+        cl = interpolate.splev(abs(alpha)/np.pi*180, self.cl_alpha)
+        cd = interpolate.splev(abs(alpha)/np.pi*180, self.cd_alpha)
+
+        qS = 0.5 * rho* (Vw*0.5144) *(Vw*0.5144) *S
+        D = qS * (cd + 0.05)
+        L = qS * cl
+
+        # Sail Moment
+        beta = np.pi - atan2(cl,cd) - alpha
+        F_sail = sqrt(L*L+D*D)*cos(pi/2-gamma-beta)
+        if L < 0: F_sail *= -1
+        M_sail = F_sail*2.8
+
+        # Mass Moment
+        M_mass = m * g * 3.3 * sin(gamma)
+
+        # Returning Moment
+        delta = self.tiller_gui['value']
+        if delta < 0.0005 and delta >=0: R = -11200
+        elif delta > -0.0005 and delta <=0: R = 11200
+        else: R = -5.6/delta
+
+        Fr = m * (V*0.5144)*(V*0.5144) / R * cos(delta-gamma)
+        M_r = Fr*0.8
+        Vw_ms = Vw*0.5144
+        alpha_deg = np.rad2deg(alpha)
+        print("M_r: %.2f" %M_r,"  Vw: %.2f" %Vw_ms,"  psiw: %.2f" %psiw,"  alpha: %.2f" %alpha_deg,"F_sail: %.2f" %F_sail,"  M_sail: %.2f" %M_sail)
+        if (M_mass - abs(M_r + M_sail)) > 0:
+            print("safe\n")
+        else:
+            print("Topple warning!!\n")
 
 
         #########################################

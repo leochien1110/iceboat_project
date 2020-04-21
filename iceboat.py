@@ -706,7 +706,7 @@ class MyCraft(ShowBase,IceSailer):
             np.degrees(self.gamma), self.Vw, np.degrees(self._ds), 
             [o.body.getPosition()[:2] for o in othercraft.values()],
             self.NextMark, self.WIND, self.eventlist)
-        print("user input(tiller,mainsheet):.%2f,%.2f" %(tiller,mainsheet))
+        #print("user input(tiller,mainsheet):.%2f,%.2f" %(tiller,mainsheet))
         # and set returned control values
         #tiller = tiller + 0.1
         #mainsheet = mainsheet - 0.1
