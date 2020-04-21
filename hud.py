@@ -13,6 +13,8 @@ from direct.gui.DirectGui import DirectFrame, OnscreenText, DirectSlider
 from panda3d.core import \
         TextNode, LineSegs, TextNode, Vec3, LColor, NodePath, Camera, \
         OrthographicLens
+from direct.gui.DirectButton import DirectButton
+
 from math import pi, sin, cos, sqrt, atan, asin, acos, atan2
 from numpy import degrees, deg2rad, radians
 
@@ -40,7 +42,7 @@ class Hud(DirectFrame):
 
         @param base   A `ShowBase` object, used to access the Panda3d window
         '''
-
+        
         # make a 2d overlay of the window, if e.g. your screen
         # aspect ratio is 3/4, this will create a coordinate system
         # with bottom left at (-4/3, -1), and top right at (4/3, 1) 
@@ -76,7 +78,7 @@ class Hud(DirectFrame):
                 frameSize = (0, 1.85, 0, 0.1),
                 frameColor = (1, 1, 1, 0.2))
         
-        # # Map background frame
+        # Map background frame
         self.map_LB = Vec3(0.5,-1.0)    # map left bot position
         self.map_origin = self.map_LB + Vec3(1000/3000,1200/4000)
         self.map_size = (0, 1.6, 0, 0.8)
@@ -84,12 +86,6 @@ class Hud(DirectFrame):
                 pos = self.map_LB,
                 frameSize = self.map_size,
                 frameColor = (0, 0, 0, 0.8))
-
-        # Information Text (NextMark)   
-        self.NextMark_display = OnscreenText(
-                text="", pos=(0.8, 0.03), scale=0.06,
-                fg=(1,1,0,1), align=TextNode.ARight,
-                parent=self.mp)
 
         # Information Text (Control tiller & sail)   
         self.information_display = OnscreenText(
@@ -103,7 +99,7 @@ class Hud(DirectFrame):
                 fg=(0,1,1,1.0), align=TextNode.ACenter,
                 parent=self.mp)
         
-        # # Recommended Tack frame (Left & Right)
+        # Recommended Tack frame (Left & Right)
         self.tkl = DirectFrame(
                 pos=Vec3(0.52,-0.3),
                 frameSize = (0, 0.13, 0, 0.08),
@@ -122,10 +118,6 @@ class Hud(DirectFrame):
                 parent=self.tkr)     
         
         # vehicle ground speed & relative speed to the mark display 
-        # self.sailtxt_display = OnscreenText(
-        #         text="Ground Speed", pos=(0.03, 0.4), scale=0.05,  
-        #         fg=(1,1,1,0.7), align=TextNode.ALeft,
-        #         parent=self.fr)
         self.speed_display = OnscreenText(
                 text="0.0", pos=(0.18, 0.29), scale=0.06,    
                 fg=(0,1,0,0.7), align=TextNode.ALeft,
@@ -154,7 +146,7 @@ class Hud(DirectFrame):
 
         # HDG angle display 
         self.hdg_display = OnscreenText(
-                text="0.0", pos=(1.65, 0.27), scale=0.06,
+                text="0.0", pos=(1.7, 0.27), scale=0.06,
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
@@ -187,6 +179,64 @@ class Hud(DirectFrame):
         self.mainsheet_gui = DirectSlider(
             pos=Vec3(-0.65, -0.9), scale=0.2,                  
             value=1.0, range=(0.05, 1.0), pageSize=0.05)
+    
+    
+       # NextMark Button & Text (Mark 1)   
+        bk_text_1 = "Push Next Mark"
+        textObject_1 = OnscreenText(text=bk_text_1, pos=(0.82, -0.95), scale=0.06,
+                                  fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+                                  mayChange=1)
+        def setText_1():
+                bk_text_1 = "Mark 1"
+                textObject_1.setText(bk_text_1)
+                NextMark = 1
+        self.button_1 = DirectButton(text=("Mark 1"), 
+                          pos=Vec3(0.6, -0.17), scale=0.06, command=setText_1)
+        
+       # NextMark Button & Text (Mark 2)   
+        bk_text_2 = ""
+        textObject_2 = OnscreenText(text=bk_text_2, pos=(0.82, -0.95), scale=0.06,
+                                  fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+                                  mayChange=1)
+        def setText_2():
+                bk_text_2 = "            -> 2"
+                textObject_2.setText(bk_text_2)
+                NextMark = 2
+        self.button_2 = DirectButton(text=("Mark 2"), 
+                          pos=Vec3(0.8, -0.17), scale=0.06, command=setText_2)
+        
+       # NextMark Button & Text (Mark 3)   
+        bk_text_3 = ""
+        textObject_3 = OnscreenText(text=bk_text_3, pos=(0.82, -0.95), scale=0.06,
+                                  fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+                                  mayChange=1)
+        def setText_3():
+                bk_text_3 = "                    -> 3"
+                textObject_3.setText(bk_text_3)
+                NextMark = 3
+        self.button_3 = DirectButton(text=("Mark 3"), 
+                          pos=Vec3(1.0, -0.17), scale=0.06, command=setText_3)
+        
+       # NextMark Button & Text (Mark 4)   
+        bk_text_4 = ""
+        textObject_4 = OnscreenText(text=bk_text_4, pos=(0.82, -0.95), scale=0.06,
+                                  fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+                                  mayChange=1)
+        def setText_4():
+                bk_text_4 = "                           -> F"
+                textObject_4.setText(bk_text_4)
+                NextMark = 4
+        self.button_4 = DirectButton(text=("Finish"), 
+                          pos=Vec3(1.2, -0.17), scale=0.06, command=setText_4)
+        
+        
+
+
+        
+        
+        
+        
+        
              
 
         # Temporary display*****************************************************************************
@@ -215,6 +265,9 @@ class Hud(DirectFrame):
                 text="WIND : 0.0", pos=(1.65, 0.7), scale=0.06,
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
+        
+        
+        
 
   
 
@@ -915,28 +968,29 @@ class Hud(DirectFrame):
             print ("distance to mark1: %.2f" %(sqrt(pow(self.marklist[1][3][0]-x,2)+pow(self.marklist[1][3][1]-y,2))))
 
 
-        # Next Mark Message, and set the mark's position
-        NextMark =1                  #initialize (temp)
+        # Next Mark Button $ Message, and set the mark's position
+        NextMark =4                  #initialize (temp)
+
         if NextMark == 1:
             Mark_x = mark1_x
             Mark_y = mark1_y
-            self.NextMark_display.text = "Go to Mark 1"
+            # self.NextMark_display.text = "Go to Mark 1"
         elif NextMark == 2:
             Mark_x = mark2_x
             Mark_y = mark2_y
-            self.NextMark_display.text = "Go to Mark 2"
+            # self.NextMark_display.text = "Go to Mark 2"
         elif NextMark == 3:
             Mark_x = mark3_x
             Mark_y = mark3_y
-            self.NextMark_display.text = "Go to Mark 3"
+            # self.NextMark_display.text = "Go to Mark 3"
         elif NextMark == 4:
             Mark_x = mark4_x
             Mark_y = mark4_y
-            self.NextMark_display.text = "Go to Finish line"
+            # self.NextMark_display.text = "Go to Finish line"
         else:
             Mark_x = 0
             Mark_y = 0
-            self.NextMark_display.text = "FINISH !!!!"
+            # self.NextMark_display.text = "FINISH !!!!"
             
         R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
         around = 200
