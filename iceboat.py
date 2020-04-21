@@ -152,9 +152,6 @@ class IceSailer:
         self.zmast = -mastbase - 0.2*mastheight # force sail z
         self.V = 0                  # total speed
         
-        self.NextMark = 1           # initial Next Mark
-        
-        
         # first step, create a composite body
         self.body = ode.Body(world)
         m = ode.Mass()
@@ -650,62 +647,12 @@ class MyCraft(ShowBase,IceSailer):
             self.doprint = 60
         self.doprint -= 1
         
-        
-        # Next Mark sequence
-        map_scale_x = 3000
-        map_scale_y = 4000
-        self.map_LB = Vec3(0.5,-1.0)    # map left bot position
-        self.map_origin = self.map_LB + Vec3(1000/3000,1200/4000) 
-        map_x = self.map_origin[1] + y/map_scale_x
-        map_y = self.map_origin[2] + x/map_scale_y
-        mark1_x = self.map_origin[1] - 340 /map_scale_x
-        mark1_y = self.map_origin[2] - 900 /map_scale_y
-        mark2_x = self.map_origin[1] + 325 /map_scale_x
-        mark2_y = self.map_origin[2] + 165 /map_scale_y
-        mark3_x = self.map_origin[1] + 1070/map_scale_x
-        mark3_y = self.map_origin[2] - 410 /map_scale_y
-        goal_x  = self.map_origin[1] + 555 /map_scale_x
-        goal_y  = self.map_origin[2] + 1890/map_scale_y
-        
-        if self.NextMark == 2:
-            Mark_x = mark2_x
-            Mark_y = mark2_y
-        elif self.NextMark == 3:
-            Mark_x = mark3_x
-            Mark_y = mark3_y
-        elif self.NextMark == 4:
-            Mark_x = goal_x
-            Mark_y = goal_y
-        elif self.NextMark == 5:
-            Mark_x = 0
-            Mark_y = 0
-        else:
-            self.NextMark = 1
-            Mark_x = mark1_x
-            Mark_y = mark1_y
-            
-        R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
-        around = 100
-
-        if self.NextMark == 1 and R > around:
-            self.NextMark = 1
-        elif (self.NextMark == 1 and R <= around) or (self.NextMark == 2 and R > around):
-            self.NextMark = 2
-        elif (self.NextMark == 2 and R <= around) or (self.NextMark == 3 and R > around):
-            self.NextMark = 3
-        elif (self.NextMark == 3 and R <= around) or (self.NextMark == 4 and R > 20):
-            self.NextMark = 4
-        else:
-            self.NextMark = 5
-
-        self.WIND =  wind.speed(self.body.getPosition())
-        
         # also call the hud with the information
         tiller, mainsheet = self.hud.update(
             x, y, np.degrees(self.psi), self.V,
             np.degrees(self.gamma), self.Vw, np.degrees(self._ds), 
             [o.body.getPosition()[:2] for o in othercraft.values()],
-            self.NextMark, self.WIND, self.eventlist)
+            self.eventlist)
         #print("user input(tiller,mainsheet):.%2f,%.2f" %(tiller,mainsheet))
         # and set returned control values
         #tiller = tiller + 0.1

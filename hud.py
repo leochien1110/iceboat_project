@@ -113,38 +113,30 @@ class Hud(DirectFrame):
                 frameSize = (0, 0.13, 0, 0.08),
                 frameColor = (0, 0, 0, 1)) 
         self.tack_l_monitor_display = OnscreenText(
-                text="Tack", pos=(0.058, 0.03), scale=0.06,
-                fg=(0,1,1,1), align=TextNode.ACenter,
-                parent=self.tkl)
-        self.tack_l_monitor0_display = OnscreenText(
                 text="", pos=(0.058, 0.03), scale=0.06,
-                fg=(0,0,0,1), align=TextNode.ACenter,
+                fg=(0,1,1,1), align=TextNode.ACenter,
                 parent=self.tkl)
         self.tack_r_monitor_display = OnscreenText(
-                text="Tack", pos=(0.058, 0.03), scale=0.06,
-                fg=(0,1,1,1), align=TextNode.ACenter,
-                parent=self.tkr)        
-        self.tack_r_monitor0_display = OnscreenText(
                 text="", pos=(0.058, 0.03), scale=0.06,
-                fg=(0,0,0,1), align=TextNode.ACenter,
-                parent=self.tkr)
+                fg=(0,1,1,1), align=TextNode.ACenter,
+                parent=self.tkr)     
         
         # vehicle ground speed & relative speed to the mark display 
-        self.sailtxt_display = OnscreenText(
-                text="Ground Speed", pos=(0.03, 0.4), scale=0.05,  
-                fg=(1,1,1,0.7), align=TextNode.ALeft,
-                parent=self.fr)
+        # self.sailtxt_display = OnscreenText(
+        #         text="Ground Speed", pos=(0.03, 0.4), scale=0.05,  
+        #         fg=(1,1,1,0.7), align=TextNode.ALeft,
+        #         parent=self.fr)
         self.speed_display = OnscreenText(
-                text="0.0", pos=(0.18, 0.3), scale=0.06,    
+                text="0.0", pos=(0.18, 0.29), scale=0.06,    
                 fg=(0,1,0,0.7), align=TextNode.ALeft,
                 parent=self.fr)
 
         self.sailtxt_display = OnscreenText(
-                text="VMG Speed", pos=(0.03, 0.2), scale=0.05,  
+                text="VMG Speed", pos=(0.03, 0.1), scale=0.05,  
                 fg=(1,1,1,0.7), align=TextNode.ALeft,
                 parent=self.fr)
         self.Vr_display = OnscreenText(
-                text="0.0", pos=(0.18, 0.1), scale=0.07,    
+                text="0.0 kts", pos=(0.18, 0.03), scale=0.07,    
                 fg=(0,1,0,0.7), align=TextNode.ALeft,
                 parent=self.fr)
 
@@ -162,25 +154,19 @@ class Hud(DirectFrame):
 
         # HDG angle display 
         self.hdg_display = OnscreenText(
-                text="HDG  : 0.0", pos=(1.65, 0.4), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        # Wind direction display 
-        self.psia_display = OnscreenText(
-                text="WIND : 0.0", pos=(1.65, 0.3), scale=0.07,
+                text="0.0", pos=(1.65, 0.27), scale=0.06,
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
         # Information Text (Mode-Starbo/Port)         
         self.mode1_message_display = OnscreenText(
-                text="", pos=(1.65, 0.2), scale=0.06,
+                text="", pos=(1.65, 0.1), scale=0.06,
                 fg=(0,1,1,0.8), align=TextNode.ACenter,
                 parent=self.fr)
         
         # Information Text (Mode-Down/UP-Wind)         
         self.mode2_message_display = OnscreenText(
-                text="", pos=(1.65, 0.1), scale=0.06,
+                text="", pos=(1.65, 0.03), scale=0.06,
                 fg=(0,1,1,0.8), align=TextNode.ACenter,
                 parent=self.fr)
         
@@ -221,6 +207,12 @@ class Hud(DirectFrame):
         
         self.psi_VMG_r_display = OnscreenText(
                 text="0.0", pos=(1.25, 0.75), scale=0.06,
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                parent=self.fr)
+        
+        # Wind direction display 
+        self.psia_display = OnscreenText(
+                text="WIND : 0.0", pos=(1.65, 0.7), scale=0.06,
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
 
@@ -703,7 +695,7 @@ class Hud(DirectFrame):
         #  xy            : position)
         self.marklist = marklist
         
-    def update(self, x, y, psi, V, psiw, Vw, ds, others, NextMark, WIND, race_events=None):
+    def update(self, x, y, psi, V, psiw, Vw, ds, others, race_events=None):
         '''
         Update the information on the displays
 
@@ -744,19 +736,27 @@ class Hud(DirectFrame):
         
         # Change the range, 0~360, of Heading(psi) and the relative wind direction 
         if psi < 0:
+            psi_ori = psi
             psi = psi + 360
+        else:
+            psi_ori = psi
+           
         if psiw < 0:
             psiw_ori = psiw
             psiw = psiw + 360
         else:
             psiw_ori = psiw
-            psiw = psiw
 
-        # Define the real wind direction(psia) and speed(Va)
-        Va = abs(WIND[0])
-        w_x = WIND[1]
-        w_y = WIND[2]
-        psia = degrees(atan2(WIND[2], WIND[1]))
+        # Calculate the real wind speed(Va)/direction(psia) 
+        Va_x = V * sin(radians(psi_ori)) + Vw * sin(radians(psi_ori + psiw_ori + 180))
+        Va_y = V * cos(radians(psi_ori)) + Vw * cos(radians(psi_ori + psiw_ori + 180))
+        Va = sqrt(Va_x **2 + Va_y **2)
+        psia = -degrees(atan2(Va_y, Va_x)) + 90 + 180
+        # psia = psia + 45/2*sin(2*radians(psi))# +45/2*cos(2*radians(psia))
+        if psia >= 360:
+            psia = psia - 360
+        elif psia < 0:
+            psia = psia + 360
         
         # Define Mode of Starbo/Port and UPwind/DOWNwind
         if (-90 <= psi - psia <= 0) or (270 <= psi - psia < 360):
@@ -782,7 +782,7 @@ class Hud(DirectFrame):
         self.sail_display.text = "{:2.0f} deg" .format(ds)
         self.tiller_display.text = "{:2.0f} deg" .format(self.tiller_gui['value']*180/pi)
         #self.ref_display.text = "ref:{:2.0f} deg" .format(abs(psiw-30))
-        self.hdg_display.text = "HDG : {:2.0f}" .format(psi)
+        self.hdg_display.text = "{:2.0f}" .format(psi)
         
         # update the wind indicator on compass rotation
         self.compass_wind.setHpr(0,0, psiw) # get the true wind direction
@@ -820,13 +820,13 @@ class Hud(DirectFrame):
         mark2_y = self.map_origin[2] + 165 /map_scale_y
         mark3_x = self.map_origin[1] + 1070/map_scale_x
         mark3_y = self.map_origin[2] - 410 /map_scale_y
-        goal_x  = self.map_origin[1] + 555 /map_scale_x
-        goal_y  = self.map_origin[2] + 1890/map_scale_y
+        mark4_x  = self.map_origin[1] + 555 /map_scale_x
+        mark4_y  = self.map_origin[2] + 1890/map_scale_y
 
         self.display_mark1.setPos(Vec3(mark1_x,mark1_y))
         self.display_mark2.setPos(Vec3(mark2_x,mark2_y))
         self.display_mark3.setPos(Vec3(mark3_x,mark3_y))
-        self.display_goal.setPos(Vec3(goal_x,goal_y))
+        self.display_goal.setPos(Vec3(mark4_x,mark4_y))
         #print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
            
 
@@ -887,35 +887,36 @@ class Hud(DirectFrame):
         # Hey Masa! Here's some example codes to read mark positions:
 
         # Read Mark Position from marklist
-        '''
+
         if len(self.marklist) != 0:
             print("mark1 info: ", self.marklist[1])
             for i in self.marklist:                
                 #print("mark1 position: ", self.marklist[1][3])
                 m_pos1 = self.marklist[1][3]
-                mark1_x = m_pose1[0]
-                mark1_y = m_pose1[1]
+                mark1_x = m_pos1[0]
+                mark1_y = m_pos1[1]
                 
                 #print("mark2 position: ", self.marklist[2][3])
                 m_pos2 = self.marklist[2][3]
-                mark2_x = m_pose2[0]
-                mark2_y = m_pose2[1]
+                mark2_x = m_pos2[0]
+                mark2_y = m_pos2[1]
                 
                 #print("mark3 position: ", self.marklist[3][3])
                 m_pos3 = self.marklist[3][3]
-                mark3_x = m_pose3[0]
-                mark3_y = m_pose3[1]
+                mark3_x = m_pos3[0]
+                mark3_y = m_pos3[1]
                 
                 #print("mark4 position: ", self.marklist[4][3])
                 m_pos4 = self.marklist[4][3]
-                mark4_x = m_pose4[0]
-                mark4_y = m_pose4[1]
+                mark4_x = m_pos4[0]
+                mark4_y = m_pos4[1]
             
             print ("relative position to mark1: %.2f , %.2f" %(self.marklist[1][3][0]-x, self.marklist[1][3][1]-y))
             print ("distance to mark1: %.2f" %(sqrt(pow(self.marklist[1][3][0]-x,2)+pow(self.marklist[1][3][1]-y,2))))
-        '''
 
-        # Next Mark Message, and set the mark's position     
+
+        # Next Mark Message, and set the mark's position
+        NextMark =1                  #initialize (temp)
         if NextMark == 1:
             Mark_x = mark1_x
             Mark_y = mark1_y
@@ -929,13 +930,27 @@ class Hud(DirectFrame):
             Mark_y = mark3_y
             self.NextMark_display.text = "Go to Mark 3"
         elif NextMark == 4:
-            Mark_x = goal_x
-            Mark_y = goal_y
+            Mark_x = mark4_x
+            Mark_y = mark4_y
             self.NextMark_display.text = "Go to Finish line"
         else:
             Mark_x = 0
             Mark_y = 0
             self.NextMark_display.text = "FINISH !!!!"
+            
+        R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
+        around = 200
+
+        if NextMark == 1 and R > around:
+            NextMark = 1
+        elif (NextMark == 1 and R <= around) or (NextMark == 2 and R > around):
+            NextMark = 2
+        elif (NextMark == 2 and R <= around) or (NextMark == 3 and R > around):
+            NextMark = 3
+        elif (NextMark == 3 and R <= around) or (NextMark == 4 and R > 20):
+            NextMark = 4
+        else:
+            NextMark = 5   
         
         #Calculate the direction to the next mark(psim) and range to the mark(R)
         theta = (90 - degrees(atan2((Mark_y - map_y)* map_scale_y, (Mark_x - map_x)* map_scale_x))) - psi
@@ -973,12 +988,15 @@ class Hud(DirectFrame):
             self.tack_display.text = "----"
         elif (x <= (0-(-1250))/(490-(-480)) * y - 600 and -480 <= y <= 490) or (200 < y < 400 and x < 0):
             flg_tack_l = 1
+            flg_tack_r = 0
             self.tack_display.text = "Avoid Wall"
-        elif Mode == 1 and (TackAngle/2 + 15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)):         
+        elif Mode == 1 and (TackAngle/2 + 15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)) and V * cos(radians(TackAngle - (psi-psim))) >= Vr * 1.5: 
+            flg_tack_l = 0
             flg_tack_r = 1
             self.tack_display.text = "Mark Position"
-        elif Mode == 3 and (TackAngle/2+15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)):
+        elif Mode == 3 and (TackAngle/2+15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)) and V * cos(radians(TackAngle - (psi-psim))) >= Vr * 1.5:
             flg_tack_l = 1
+            flg_tack_r = 0
             self.tack_display.text = "Mark Position"
         #elif sqrt(((map_x - others[1]) * map_scale_x)**2 + ((map_y - others[2]) * map_scale_y)**2) < 15 and 0 <= psiw <= 180:
         #    flg_tack_r = 1
@@ -998,12 +1016,12 @@ class Hud(DirectFrame):
             self.tack_display.text = "----"
             
         if flg_tack_l == 1:
-            self.tack_l_monitor0_display.text = ""
+            self.tack_l_monitor_display.text = "Tack"
         elif flg_tack_r == 1:
-            self.tack_r_monitor0_display.text = ""
+            self.tack_r_monitor_display.text = "Tack"
         else:
-            self.tack_l_monitor0_display.text = "Tack"
-            self.tack_r_monitor0_display.text = "Tack"
+            self.tack_l_monitor_display.text = ""
+            self.tack_r_monitor_display.text = ""
             
 
         # Calculate best heading(psi_VMG)/mainsheet(ds_VMG) for getting VMG
@@ -1061,7 +1079,7 @@ class Hud(DirectFrame):
             self.information_display.text = "Set Tiller to Next Mark. Then control Sail on Green."
 
         # For display of text values
-        self.Vr_display.text = "{:2.1f}" .format(Vr)
+        self.Vr_display.text = "{:2.1f} kts" .format(Vr)
         self.ds_VMG_l_display.text = "sail for VMG:{:2.0f}" .format(ds_VMG_l)
         self.ds_VMG_r_display.text = "sail for VMG:{:2.0f}" .format(ds_VMG_r)
         self.psi_VMG_l_display.text = "HDG for VMG:{:2.0f}" .format(psi_VMG_l)
@@ -1124,7 +1142,7 @@ if __name__ == '__main__':
             others = [ (-20 + 3*sin(0.2*task.time), 20 + 3*cos(0.2*task.time)),
                        ( 20 + 3*sin(0.2*task.time), 20 + 3*cos(0.2*task.time)) ]
 
-            self.hud.update(x, y, psi, V, psiw, Vw, ds, others, NextMark, WIND)
+            self.hud.update(x, y, psi, V, psiw, Vw, ds, others)
             
             return Task.cont
     
