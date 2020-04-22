@@ -977,19 +977,19 @@ class Hud(DirectFrame):
         # Next Mark Button $ Message, and set the mark's position
         # NextMark =4                  #initialize (temp)
 
-        if NextMark == 1:
+        if self.NextMark == 1:
             Mark_x = mark1_x
             Mark_y = mark1_y
             # self.NextMark_display.text = "Go to Mark 1"
-        elif NextMark == 2:
+        elif self.NextMark == 2:
             Mark_x = mark2_x
             Mark_y = mark2_y
             # self.NextMark_display.text = "Go to Mark 2"
-        elif NextMark == 3:
+        elif self.NextMark == 3:
             Mark_x = mark3_x
             Mark_y = mark3_y
             # self.NextMark_display.text = "Go to Mark 3"
-        elif NextMark == 4:
+        elif self.NextMark == 4:
             Mark_x = mark4_x
             Mark_y = mark4_y
             # self.NextMark_display.text = "Go to Finish line"
@@ -1001,16 +1001,16 @@ class Hud(DirectFrame):
         R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
         around = 200
 
-        if NextMark == 1 and R > around:
-            NextMark = 1
-        elif (NextMark == 1 and R <= around) or (NextMark == 2 and R > around):
-            NextMark = 2
-        elif (NextMark == 2 and R <= around) or (NextMark == 3 and R > around):
-            NextMark = 3
-        elif (NextMark == 3 and R <= around) or (NextMark == 4 and R > 20):
-            NextMark = 4
+        if self.NextMark == 1 and R > around:
+            self.NextMark = 1
+        elif (self.NextMark == 1 and R <= around) or (self.NextMark == 2 and R > around):
+            self.NextMark = 2
+        elif (self.NextMark == 2 and R <= around) or (self.NextMark == 3 and R > around):
+            self.NextMark = 3
+        elif (self.NextMark == 3 and R <= around) or (self.NextMark == 4 and R > 20):
+            self.NextMark = 4
         else:
-            NextMark = 5   
+            self.NextMark = 5   
         
         #Calculate the direction to the next mark(psim) and range to the mark(R)
         theta = (90 - degrees(atan2((Mark_y - map_y)* map_scale_y, (Mark_x - map_x)* map_scale_x))) - psi
