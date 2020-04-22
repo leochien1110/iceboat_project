@@ -6,15 +6,21 @@ Created on Thu Dec 12 15:16:21 2019
 @author: repa
 @licence: GPL-v3.0
 """
-# branch test
+
 # Panda3D imoprts
 from direct.showbase.DirectObject import DirectObject
 from direct.gui.DirectGui import DirectFrame, OnscreenText, DirectSlider
 from panda3d.core import \
         TextNode, LineSegs, TextNode, Vec3, LColor, NodePath, Camera, \
         OrthographicLens
-from math import pi, sin, cos, sqrt, atan, asin, acos
+from direct.gui.DirectButton import DirectButton
+
+from math import pi, sin, cos, sqrt, atan, asin, acos, atan2
 from numpy import degrees, deg2rad, radians
+
+import numpy as np
+from scipy import interpolate
+import csv
 
 # LineSegs
 
@@ -36,7 +42,10 @@ class Hud(DirectFrame):
 
         @param base   A `ShowBase` object, used to access the Panda3d window
         '''
-
+        
+        #self.pre_psia = 0
+        self.NextMark = 1
+        
         # make a 2d overlay of the window, if e.g. your screen
         # aspect ratio is 3/4, this will create a coordinate system
         # with bottom left at (-4/3, -1), and top right at (4/3, 1) 
@@ -62,12 +71,17 @@ class Hud(DirectFrame):
         myCamera2d.reparentTo(myRender2d)
         dr.setCamera(myCamera2d)
 
-        # example of a colored, fixed frame    
+        # Main background frame    
         self.fr = DirectFrame(
                 pos=Vec3(-1.35,-1.0),
-                frameSize = (0, 2.7, 0, 0.55),      #(by MASA, 04/17/2020)
+                frameSize = (0, 2.7, 0, 0.55),      
                 frameColor = (0, 0, 0, 0.5))
+        self.inf = DirectFrame(
+                pos=Vec3(-1.35,-0.45),
+                frameSize = (0, 1.85, 0, 0.1),
+                frameColor = (1, 1, 1, 0.2))
         
+        # Map background frame
         self.map_LB = Vec3(0.5,-1.0)    # map left bot position
         self.map_origin = self.map_LB + Vec3(1000/3000,1200/4000)
         self.map_size = (0, 1.6, 0, 0.8)
@@ -75,193 +89,191 @@ class Hud(DirectFrame):
                 pos = self.map_LB,
                 frameSize = self.map_size,
                 frameColor = (0, 0, 0, 0.8))
-                
+
+        # Information Text (Control tiller & sail)   
+        self.information_display = OnscreenText(
+                text="", pos=(0.05, 0.03), scale=0.048,
+                fg=(1,1,0,1), align=TextNode.ALeft,
+                parent=self.inf)
         
-        # Fixed Frame & Text for Recommended Tack (by MASA, 04/17/2020) 
+        # Information Text (Reason of tacking)   
+        self.tack_display = OnscreenText(
+                text="", pos=(0.4, 0.64), scale=0.06,
+                fg=(0,1,1,1.0), align=TextNode.ACenter,
+                parent=self.mp)
+        
+        # Recommended Tack frame (Left & Right)
         self.tkl = DirectFrame(
                 pos=Vec3(0.52,-0.3),
                 frameSize = (0, 0.13, 0, 0.08),
-                frameColor = (1, 0.75, 0, 1))
-        self.speed_display = OnscreenText(
-                text="Tack", pos=(0.058, 0.03), scale=0.05,
-                fg=(0,0,0,1), align=TextNode.ACenter,
-                parent=self.tkl)
-        
+                frameColor = (0, 0, 0, 1))
         self.tkr = DirectFrame(
                 pos=Vec3(1.18,-0.3),
                 frameSize = (0, 0.13, 0, 0.08),
-                frameColor = (0.4, 0.4, 0.4, 1))
-        self.speed_display = OnscreenText(
-                text="Tack", pos=(0.058, 0.03), scale=0.05,
-                fg=(0,0,0,1), align=TextNode.ACenter,
-                parent=self.tkr)
-       
-        
-        # Information Text (by MASA, 04/17/2020) 
-        self.speed_display = OnscreenText(
-                text="Blanket", pos=(0.4, 0.7), scale=0.06,
-                fg=(0,1,0,0.8), align=TextNode.ACenter,
-                parent=self.mp)
-        
-        self.tkl = DirectFrame(
-                pos=Vec3(-1.35,-0.45),
-                frameSize = (0, 1.85, 0, 0.1),
-                frameColor = (1, 1, 1, 0.2))
-        '''
-        self.NextMark_display = OnscreenText(
-                text="", pos=(0.05, 0.03), scale=0.05,
-                fg=(1,1,0,1), align=TextNode.ALeft,
+                frameColor = (0, 0, 0, 1)) 
+        self.tack_l_monitor_display = OnscreenText(
+                text="", pos=(0.058, 0.03), scale=0.06,
+                fg=(0,1,1,1), align=TextNode.ACenter,
                 parent=self.tkl)
-        '''
-        self.information_display = OnscreenText(
-                text="", pos=(0.6, 0.03), scale=0.05,
-                fg=(1,1,0,1), align=TextNode.ALeft,
-                parent=self.tkl)
-
-
-        # vehicle speed display, fixed (easy) number
+        self.tack_r_monitor_display = OnscreenText(
+                text="", pos=(0.058, 0.03), scale=0.06,
+                fg=(0,1,1,1), align=TextNode.ACenter,
+                parent=self.tkr)     
+        
+        # vehicle ground speed & relative speed to the mark display 
         self.speed_display = OnscreenText(
-                text="0.0", pos=(0.25, 0.29), scale=0.07,    #(by MASA, 04/17/2020)
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                text="0.0", pos=(0.18, 0.29), scale=0.06,    
+                fg=(0,1,0,0.7), align=TextNode.ALeft,
                 parent=self.fr)
-        
+
+        self.sailtxt_display = OnscreenText(
+                text="VMG Speed", pos=(0.03, 0.1), scale=0.05,  
+                fg=(1,1,1,0.7), align=TextNode.ALeft,
+                parent=self.fr)
         self.Vr_display = OnscreenText(
-                text="0.0", pos=(0.25, 0.35), scale=0.07,    #(by MASA, 04/17/2020)
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                text="0.0 kts", pos=(0.18, 0.03), scale=0.07,    
+                fg=(0,1,0,0.7), align=TextNode.ALeft,
                 parent=self.fr)
 
-        # sail angle display, fixed (easy) number
+        # current sail angle display
         self.sail_display = OnscreenText(
-                text="0.0", pos=(0.75, 0.29), scale=0.07,    #(by MASA, 04/17/2020)
+                text="0.0", pos=(0.7, 0.29), scale=0.06,    
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
-        self.ds_VMG_l_display = OnscreenText(
-                text="0.0", pos=(0.75, 0.35), scale=0.07,    #(by MASA, 04/17/2020)
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.ds_VMG_r_display = OnscreenText(
-                text="0.0", pos=(0.75, 0.4), scale=0.07,    #(by MASA, 04/17/2020)
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        # tiller angle display, fixed (easy) number (by MASA, 04/17/2020)
+        # current sail angle display
         self.tiller_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.29), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.psi_VMG_l_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.35), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.psi_VMG_r_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.4), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.psia_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.45), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.psim_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.5), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.Mode_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.55), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.AOA_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.6), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.psia_2_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.65), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-    
-        
-        self.theta_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.7), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.Va_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.75), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.R_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.8), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.NextMark_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.85), scale=0.07,
-                fg=(0,1,0,0.7), align=TextNode.ACenter,
-                parent=self.fr)
-        
-        self.Vw_display = OnscreenText(
-                text="0.0", pos=(1.25, 0.9), scale=0.07,
+                text="0.0", pos=(1.2, 0.29), scale=0.06,    
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
 
-
-
-
-
-
-        
-        
-        
-        
-        
-        
-
-
-        # HDG angle display, fixed (easy) number (by MASA, 04/17/2020)
+        # HDG angle display 
         self.hdg_display = OnscreenText(
-                text="0.0", pos=(1.65, 0.29), scale=0.07,
+                text="0.0", pos=(1.7, 0.27), scale=0.06,
                 fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
-
+        
+        # Information Text (Mode-Starbo/Port)         
+        self.mode1_message_display = OnscreenText(
+                text="", pos=(1.65, 0.1), scale=0.06,
+                fg=(0,1,1,0.8), align=TextNode.ACenter,
+                parent=self.fr)
+        
+        # Information Text (Mode-Down/UP-Wind)         
+        self.mode2_message_display = OnscreenText(
+                text="", pos=(1.65, 0.03), scale=0.06,
+                fg=(0,1,1,0.8), align=TextNode.ACenter,
+                parent=self.fr)
+        
         # gui element for the tiller (steer the rudder)
         self.tillertxt_display = OnscreenText(
-                text="-0.5       tiller       0.5", pos=(1.25, 0.04), scale=0.05,    #(by MASA, 04/17/2020)
+                text="-0.5       tiller       0.5", pos=(1.2, 0.04), scale=0.05,    
                 fg=(1,1,1,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         self.tiller_gui = DirectSlider(
-            pos=Vec3(-0.1, -0.9), scale=0.2,                 #(by MASA, 04/17/2020)
+            pos=Vec3(-0.15, -0.9), scale=0.2,                 
             value=0.0, range=(-0.5,0.5), pageSize=0.05)
 
         # gui element for the mainsheet (control the sail)
         self.sailtxt_display = OnscreenText(
-                text="0.0         sail         1.0", pos=(0.75, 0.04), scale=0.05,  #(by MASA, 04/17/2020)
+                text="0.0         sail         1.0", pos=(0.7, 0.04), scale=0.05,  
                 fg=(1,1,1,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         self.mainsheet_gui = DirectSlider(
-            pos=Vec3(-0.6, -0.9), scale=0.2,                  #(by MASA, 04/17/2020)
+            pos=Vec3(-0.65, -0.9), scale=0.2,                  
             value=1.0, range=(0.05, 1.0), pageSize=0.05)
+    
+    
+       # # NextMark Button & Text (Mark 1)   
+       #  bk_text_1 = "Push Next Mark"
+       #  textObject_1 = OnscreenText(text=bk_text_1, pos=(0.82, -0.95), scale=0.06,
+       #                            fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+       #                            mayChange=1)
+       #  def setText_1():
+       #          bk_text_1 = "Mark 1"
+       #          textObject_1.setText(bk_text_1)
+       #          NextMark = 1
+       #  self.button_1 = DirectButton(text=("Mark 1"), 
+       #                    pos=Vec3(0.6, -0.17), scale=0.06, command=setText_1)
         
-        # gui element for the Speed (by MASA, 04/17/2020)
-        self.sailtxt_display = OnscreenText(
-                text="Speed", pos=(0.25, 0.04), scale=0.05,  #(by MASA, 04/17/2020)
-                fg=(1,1,1,0.7), align=TextNode.ACenter,
+       # # NextMark Button & Text (Mark 2)   
+       #  bk_text_2 = ""
+       #  textObject_2 = OnscreenText(text=bk_text_2, pos=(0.82, -0.95), scale=0.06,
+       #                            fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+       #                            mayChange=1)
+       #  def setText_2():
+       #          bk_text_2 = "            -> 2"
+       #          textObject_2.setText(bk_text_2)
+       #          NextMark = 2
+       #  self.button_2 = DirectButton(text=("Mark 2"), 
+       #                    pos=Vec3(0.8, -0.17), scale=0.06, command=setText_2)
+        
+       # # NextMark Button & Text (Mark 3)   
+       #  bk_text_3 = ""
+       #  textObject_3 = OnscreenText(text=bk_text_3, pos=(0.82, -0.95), scale=0.06,
+       #                            fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+       #                            mayChange=1)
+       #  def setText_3():
+       #          bk_text_3 = "                    -> 3"
+       #          textObject_3.setText(bk_text_3)
+       #          NextMark = 3
+       #  self.button_3 = DirectButton(text=("Mark 3"), 
+       #                    pos=Vec3(1.0, -0.17), scale=0.06, command=setText_3)
+        
+       # # NextMark Button & Text (Mark 4)   
+       #  bk_text_4 = ""
+       #  textObject_4 = OnscreenText(text=bk_text_4, pos=(0.82, -0.95), scale=0.06,
+       #                            fg=(1,0.5,0.5,1), align=TextNode.ALeft,
+       #                            mayChange=1)
+       #  def setText_4():
+       #          bk_text_4 = "                           -> F"
+       #          textObject_4.setText(bk_text_4)
+       #          NextMark = 4
+       #  self.button_4 = DirectButton(text=("Finish"), 
+       #                    pos=Vec3(1.2, -0.17), scale=0.06, command=setText_4)
+        
+        
+
+
+        
+        
+        
+        
+        
+             
+
+        # Temporary display*****************************************************************************
+        self.ds_VMG_l_display = OnscreenText(
+                text="0.0", pos=(0.75, 0.7), scale=0.06,    
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
-        # gui element for the HDG (by MASA, 04/17/2020)
-        self.sailtxt_display = OnscreenText(
-                text="HDG", pos=(1.65, 0.04), scale=0.05,  #(by MASA, 04/17/2020)
-                fg=(1,1,1,0.7), align=TextNode.ACenter,
+        self.ds_VMG_r_display = OnscreenText(
+                text="0.0", pos=(0.75, 0.75), scale=0.06,    
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                parent=self.fr)
+            
+        self.psi_VMG_l_display = OnscreenText(
+                text="0.0", pos=(1.25, 0.7), scale=0.06,
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
                 parent=self.fr)
         
+        self.psi_VMG_r_display = OnscreenText(
+                text="0.0", pos=(1.25, 0.75), scale=0.06,
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                parent=self.fr)
+        
+        # Wind direction display 
+        self.psia_display = OnscreenText(
+                text="WIND : 0.0", pos=(1.65, 0.7), scale=0.06,
+                fg=(0,1,0,0.7), align=TextNode.ACenter,
+                parent=self.fr)
+        
+        
+        
+
+  
+
     
         # example of a drawn instrument. Panda3d uses scene graph
         # techonology. Think of each graphical element as a node on
@@ -326,17 +338,232 @@ class Hud(DirectFrame):
             
         # scale the combined compass & put it in the corner
         self.compass_rose.setScale(0.2)
-        self.compass_rose.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
+        self.compass_rose.setPos(Vec3(0.3,-0.65))    
         
+        # Mark direction Indicator
+        mark_indicator = LineSegs("mark_indicator")
+        mark_indicator.setColor(LColor(1, 0.5, 0, 1))
+        mark_indicator.setThickness(4.0)
+
+        pnt = Vec3(0.0,0.5)
+        mark_indicator.moveTo(0.0)
+        mark_indicator.drawTo(pnt)
+
+        self.compass_mark = NodePath("compass mark")
+        self.compass_mark.attachNewNode(mark_indicator.create())
+
+        self.compass_mark.reparentTo(myRender2d)
+
+        self.compass_mark.setScale(1)
+        self.compass_mark.setPos(Vec3(0.3,-0.65)) 
+
+        # Speed Rose
+        speed = LineSegs("speed")
+        speed.setColor(LColor(1, 1, 1, 1))
+        speed.setThickness(2.0)
+        
+        # speed rose lines
+        for i in range(0,360,90):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            speed.moveTo(pnt*0.75)
+            speed.drawTo(pnt)
+            for j in range(10,90,9):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                speed.moveTo(pnt*0.85)
+                speed.drawTo(pnt)
+                
+        # create and connect this to a new speed rose "node"
+        self.speed_rose = NodePath("speed indicator")
+        self.speed_rose.attachNewNode(speed.create())
+        
+        # now connect the compass itself to the 2d window
+        self.speed_rose.reparentTo(myRender2d)
+
+        for l, angle in [("0", 0), ("10", 90), 
+                         ("20", 180), ("30", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the speed rose as a whole
+            piv.reparentTo(self.speed_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.2*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.speed_rose.setScale(0.2)
+        self.speed_rose.setPos(Vec3(-1.1,-0.65))
+
+        # Speed Indicator
+        speed_indicator = LineSegs("speed_indicator")
+        speed_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        speed_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        speed_indicator.moveTo(0.0)
+        speed_indicator.drawTo(pnt)
+
+        self.speed_arrow = NodePath("speed_arrow")
+        self.speed_arrow.attachNewNode(speed_indicator.create())
+
+        self.speed_arrow.reparentTo(myRender2d)
+
+        self.speed_arrow.setScale(0.4)
+        self.speed_arrow.setPos(Vec3(-1.1,-0.65))
+
+         # Sail Rose
+        sail = LineSegs("sail")
+        sail.setColor(LColor(1, 1, 1, 1))
+        sail.setThickness(2.0)
+        
+        # sail rose lines
+        for i in range(0,360,45):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            sail.moveTo(pnt*0.7)
+            sail.drawTo(pnt)
+            for j in range(9,90,9):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                sail.moveTo(pnt*0.85)
+                sail.drawTo(pnt)
+                
+        # create and connect this to a new sail rose "node"
+        self.sail_rose = NodePath("sail indicator")
+        self.sail_rose.attachNewNode(sail.create())
+        
+        # now connect the compass itself to the 2d window
+        self.sail_rose.reparentTo(myRender2d)
+
+        for l, angle in [("- 0 +", 0), ("30", 90), 
+                         ("60", 180), ("30", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the sail rose as a whole
+            piv.reparentTo(self.sail_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.15*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.sail_rose.setScale(0.2)
+        self.sail_rose.setPos(Vec3(-0.65,-0.65))
+
+        # sail Indicator
+        sail_indicator = LineSegs("sail_indicator")
+        sail_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        sail_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        sail_indicator.moveTo(0.0)
+        sail_indicator.drawTo(pnt)
+
+        self.sail_arrow = NodePath("sail_arrow")
+        self.sail_arrow.attachNewNode(sail_indicator.create())
+
+        self.sail_arrow.reparentTo(myRender2d)
+
+        self.sail_arrow.setScale(0.4)
+        self.sail_arrow.setPos(Vec3(-0.65,-0.65))
+
+        # tiller Rose
+        tiller = LineSegs("tiller")
+        tiller.setColor(LColor(1, 1, 1, 1))
+        tiller.setThickness(2.0)
+        
+        # tiller rose lines
+        for i in range(0,360,90):
+            pnt = Vec3(sin(i/180*pi), cos(i/180*pi))
+            tiller.moveTo(pnt*0.7)
+            tiller.drawTo(pnt)
+            for j in range(15,90,15):
+                pnt = Vec3(sin((i + j)/180*pi), cos((i+j)/180*pi))
+                tiller.moveTo(pnt*0.85)
+                tiller.drawTo(pnt)
+                
+        # create and connect this to a new tiller rose "node"
+        self.tiller_rose = NodePath("tiller indicator")
+        self.tiller_rose.attachNewNode(tiller.create())
+        
+        # now connect the compass itself to the 2d window
+        self.tiller_rose.reparentTo(myRender2d)
+
+        for l, angle in [("0", 0), ("14.3", 90), 
+                         ("28.6", 180), ("18", 270)]:
+            
+            # create the textnode object & set the text
+            tn = TextNode("label " + l)
+            tn.setText(l)
+            
+            # create an additional node in the center of the compass
+            piv = NodePath("pivot " + l)
+            
+            # create & link the text node to the center pivot
+            tnp = piv.attachNewNode(tn)
+        
+            # link the pivot point to the tiller rose as a whole
+            piv.reparentTo(self.tiller_rose)
+            
+            # scale text, and offset relative to the pivot
+            tnp.setScale(0.3)
+            tnp.setPos(Vec3(-0.2*tn.getWidth(), 0.45))
+            
+            # now rotate the pivot
+            piv.setHpr(0, 0, angle)
+            
+        # scale the combined compass & put it in the corner
+        self.tiller_rose.setScale(0.2)
+        self.tiller_rose.setPos(Vec3(-0.15,-0.65))
+
+        # tiller Indicator
+        tiller_indicator = LineSegs("tiller_indicator")
+        tiller_indicator.setColor(LColor(1.0, 0.0, 0.0, 1))
+        tiller_indicator.setThickness(3.0)
+
+        pnt = Vec3(0.0,0.5)
+        tiller_indicator.moveTo(0.0)
+        tiller_indicator.drawTo(pnt)
+
+        self.tiller_arrow = NodePath("tiller_arrow")
+        self.tiller_arrow.attachNewNode(tiller_indicator.create())
+
+        self.tiller_arrow.reparentTo(myRender2d)
+
+        self.tiller_arrow.setScale(0.4)
+        self.tiller_arrow.setPos(Vec3(-0.15,-0.65))
+
         # boat icon
         boat = LineSegs("boat")
         boat.setColor(LColor(.7,.7,.7,1))
         boat.setThickness(3.0)
 
-        boat.moveTo(Vec3(0.0,0.0))          #(by MASA, 04/17/2020)
-        boat.drawTo(Vec3(0.0, 0.35))        #(by MASA, 04/17/2020)
-        boat.moveTo(Vec3(-0.2,0.0))        #(by MASA, 04/17/2020)
-        boat.drawTo(Vec3(0.2,-0.0))         #(by MASA, 04/17/2020)
+        boat.moveTo(Vec3(0.0,0.0))          
+        boat.drawTo(Vec3(0.0, 0.75))        
+        boat.moveTo(Vec3(-0.2,0.0))        
+        boat.drawTo(Vec3(0.2,-0.0))         
 
         self.compass_boat = NodePath("compass boat")
         self.compass_boat.attachNewNode(boat.create())
@@ -344,7 +571,9 @@ class Hud(DirectFrame):
         self.compass_boat.reparentTo(myRender2d)
 
         self.compass_boat.setScale(0.2)
-        self.compass_boat.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
+        self.compass_boat.setPos(Vec3(0.3,-0.65))    
+
+          
 
         # Wind Indicator
         wind_indicator = LineSegs("wind_indicator")
@@ -361,7 +590,7 @@ class Hud(DirectFrame):
         self.compass_wind.reparentTo(myRender2d)
 
         self.compass_wind.setScale(1)
-        self.compass_wind.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
+        self.compass_wind.setPos(Vec3(0.3,-0.65))    
 
         # Sail Indicator
         sail_indicator = LineSegs("sail_indicator")
@@ -378,40 +607,7 @@ class Hud(DirectFrame):
         self.compass_sail.reparentTo(myRender2d)
 
         self.compass_sail.setScale(1)
-        self.compass_sail.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
-        
-
-        '''
-        # Reference Indicator
-        ref_indicator = LineSegs("ref_indicator")
-        ref_indicator.setColor(LColor(1, 0.2, 0.2, 0.5))
-        ref_indicator.setThickness(2.0)
-
-        pnt1 = Vec3(cos(pi/3),sin(pi/3))
-        pnt2 = Vec3(-cos(pi/3),-sin(pi/3))
-        pnt3 = Vec3(-cos(pi/3),sin(pi/3))
-        pnt4 = Vec3(cos(pi/3),-sin(pi/3))
-        pnt5 = Vec3(cos(0.4*pi),sin(0.4*pi))
-        pnt6 = Vec3(-cos(0.4*pi),-sin(0.4*pi))
-        pnt7 = Vec3(-cos(0.4*pi),sin(0.4*pi))
-        pnt8 = Vec3(cos(0.4*pi),-sin(0.4*pi))
-        ref_indicator.moveTo(pnt1)
-        ref_indicator.drawTo(pnt2)
-        ref_indicator.moveTo(pnt3)
-        ref_indicator.drawTo(pnt4)
-        ref_indicator.moveTo(pnt5)
-        ref_indicator.drawTo(pnt6)
-        ref_indicator.moveTo(pnt7)
-        ref_indicator.drawTo(pnt8)
-
-        self.compass_ref = NodePath("compass ref")
-        self.compass_ref.attachNewNode(ref_indicator.create())
-
-        self.compass_ref.reparentTo(myRender2d)
-
-        self.compass_ref.setScale(1)
-        self.compass_ref.setPos(Vec3(0.3,-0.65))    #(by MASA, 04/17/2020)
-        '''
+        self.compass_sail.setPos(Vec3(0.3,-0.65))    
         
 
         # Boat position
@@ -524,6 +720,27 @@ class Hud(DirectFrame):
         self.display_goal.setScale(0.01)
         self.display_goal.setPos(Vec3(0.0,0.0))
 
+        # get the cl alpha curve for the sail
+        clcda = csv.reader(open('cl-alpha.csv'))
+        clcda.__next__()   # skip header
+        alpha=[]
+        cl=[]
+        for row in clcda:
+            alpha.append(row[0])
+            cl.append(row[1])
+        self.cl_alpha = interpolate.splrep(alpha, cl)
+        
+        # and the cd alpha curve
+        clcda = csv.reader(open('cd-alpha.csv'))
+        clcda.__next__()
+        alpha=[]
+        cd=[]
+        for row in clcda:
+            alpha.append(row[0])
+            cd.append(row[1])
+        self.cd_alpha = interpolate.splrep(alpha, cd)
+        self.doprint = -30
+
         # list of race marks
         # (type: '+'/'-' : round clockwise, counterclockwise
         #        'a'     : avoid (penalty)
@@ -573,53 +790,59 @@ class Hud(DirectFrame):
             Mainsheet commanded angle.
         '''
         
-        
-        # Define Port/Starbo (by MASA, 04/18/2020)
+        # Change the range, 0~360, of Heading(psi) and the relative wind direction 
         if psi < 0:
+            psi_ori = psi
             psi = psi + 360
-            
+        else:
+            psi_ori = psi
+           
         if psiw < 0:
+            psiw_ori = psiw
             psiw = psiw + 360
-            
-        # Calculate the AOA real wind speed(Va)/direction(psia) (by MASA, 04/18/2020)
-        if psiw > 180:
-            AOA = 360 - psiw
         else:
-            AOA = psiw
-        
-        Va = sqrt(V ** 2 + Vw ** 2 - 2 * V * Vw * cos(radians(AOA)))
-        if psiw <= 180:
-            psia = psi + (AOA + degrees(acos((Va ** 2 + Vw ** 2 - V ** 2)/(2 * Va * Vw + 0.001))))
-        else:
-            psia = psi - (AOA + degrees(acos((Va ** 2 + Vw ** 2 - V ** 2)/(2 * Va * Vw + 0.001))))
-            
-        if psia < 0:
-            psia = psia + 360
-            
-        psia_2 = degrees(acos((Va ** 2 + Vw ** 2 - V ** 2)/(2 * Va * Vw + 0.001)))
-            
-        if (-90 <= psi - psia <= 0) or (270 <= psi - psia < 360):
-            Mode = 1            # Starbo/UPwind
-        elif (-180 <= psi - psia < -90) or (180 <= psi - psia < 270):
-            Mode = 2            # Starbo/DOWNwind
-        elif (-360 < psi - psia <= -270) or (0 < psi - psia <= 90):
-            Mode = 3            # Port/UPwind
-        else:
-            Mode = 4            # Port/DOENwind
-                
-        
-        
-        
+            psiw_ori = psiw
 
-        #print("BoatDir: %.2f" % psi,"  Wind(dir,V): %.2f, %.2f" %(psiw, Vw))
+        # Calculate the actual wind speed(Va)/direction(psia) 
+        Va_x = V * sin(radians(psi_ori)) + Vw * sin(radians(psi_ori + psiw_ori + 180))
+        Va_y = V * cos(radians(psi_ori)) + Vw * cos(radians(psi_ori + psiw_ori + 180))
+        Va = sqrt(Va_x **2 + Va_y **2)
+        psia = -degrees(atan2(Va_y, Va_x)) + 90 + 180
+        # psia = psia + 40/2*sin(2*radians(psi))
+        # psia = pre_psia * 0.9 + psia * 0.1
+        # pre_psia = psia
+        
+        if psia >= 360:
+            psia = psia - 360
+        elif psia < 0:
+            psia = psia + 360
+        
+        # Define Mode of Starbo/Port and UPwind/DOWNwind
+        if (-90 <= psi - psia <= 0) or (270 <= psi - psia < 360):
+            Mode = 1
+            self.mode1_message_display.text = "Starboard"
+            self.mode2_message_display.text = "UP-Wind"
+        elif (-180 <= psi - psia < -90) or (180 <= psi - psia < 270):
+            Mode = 2
+            self.mode1_message_display.text = "Starboard"
+            self.mode2_message_display.text = "DOWN-Wind"
+        elif (-360 < psi - psia <= -270) or (0 < psi - psia <= 90):
+            Mode = 3
+            self.mode1_message_display.text = "Port"
+            self.mode2_message_display.text = "UP-Wind"
+        else:
+            Mode = 4
+            self.mode1_message_display.text = "Port"
+            self.mode2_message_display.text = "DOWN-Wind"
 
         # update the compass rotation, and set the speed text
         self.compass_rose.setHpr(0, 0, -psi)
-        self.speed_display.text = "{:2.1f}".format(V)
-        self.sail_display.text = "{:2.0f}" .format(ds)
+        self.speed_display.text = "{:2.1f} kts".format(V)
+        self.sail_display.text = "{:2.0f} deg" .format(ds)
+        self.tiller_display.text = "{:2.0f} deg" .format(self.tiller_gui['value']*180/pi)
         #self.ref_display.text = "ref:{:2.0f} deg" .format(abs(psiw-30))
-        self.tiller_display.text = "{:2.0f}" .format(psi)
         self.hdg_display.text = "{:2.0f}" .format(psi)
+        
         # update the wind indicator on compass rotation
         self.compass_wind.setHpr(0,0, psiw) # get the true wind direction
         self.compass_wind.setScale(0.1+0.007*Vw)
@@ -627,10 +850,15 @@ class Hud(DirectFrame):
         # update the sail indicator on compass rotation
         self.compass_sail.setHpr(0,0, 180+ds) # get the true sail direction
         self.compass_sail.setScale(0.2)
-        
-        # update the ref indicator on compass rotation
-        #self.compass_ref.setHpr(0,0, 180+ds) # get the true ref direction
-        #self.compass_ref.setScale(0.2)
+
+        # update the speed indicator on compass rotation
+        self.speed_arrow.setHpr(0,0, V*9)
+
+        # update the sail indicator on compass rotation
+        self.sail_arrow.setHpr(0,0, ds*pi)
+
+        # update the tiller indicator on compass rotation
+        self.tiller_arrow.setHpr(0,0, self.tiller_gui['value']*360)
         
         # map position unit conversion
         map_scale_x = 3000
@@ -638,92 +866,154 @@ class Hud(DirectFrame):
         map_x = self.map_origin[1] + y/map_scale_x
         map_y = self.map_origin[2] + x/map_scale_y
 
-         # update the boat pose on map
+        # update the boat pose on map
         self.display_boat.setHpr(0,0,psi)
         self.display_boat.setPos(Vec3(map_x,map_y))
-        #print("x: %.4f" %map_x,"  y: %.4f" %map_y)
 
         # update marks position on map
-        start_x = self.map_origin[1] - 650 /map_scale_x     # (by MASA, 04/18/2020)
-        start_y = self.map_origin[2] - 200 /map_scale_y     # (by MASA, 04/18/2020)
+        start_x = self.map_origin[1] - 650 /map_scale_x
+        start_y = self.map_origin[2] - 200 /map_scale_y
         mark1_x = self.map_origin[1] - 340 /map_scale_x
         mark1_y = self.map_origin[2] - 900 /map_scale_y
         mark2_x = self.map_origin[1] + 325 /map_scale_x
         mark2_y = self.map_origin[2] + 165 /map_scale_y
         mark3_x = self.map_origin[1] + 1070/map_scale_x
         mark3_y = self.map_origin[2] - 410 /map_scale_y
-        goal_x  = self.map_origin[1] + 555 /map_scale_x
-        goal_y  = self.map_origin[2] + 1890/map_scale_y
+        mark4_x  = self.map_origin[1] + 555 /map_scale_x
+        mark4_y  = self.map_origin[2] + 1890/map_scale_y
 
         self.display_mark1.setPos(Vec3(mark1_x,mark1_y))
         self.display_mark2.setPos(Vec3(mark2_x,mark2_y))
         self.display_mark3.setPos(Vec3(mark3_x,mark3_y))
-        self.display_goal.setPos(Vec3(goal_x,goal_y))
-        print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
+        self.display_goal.setPos(Vec3(mark4_x,mark4_y))
+        #print("map_x: %.4f" %map_x,"  map_y: %.4f" %map_y)
+           
+
+        ############################################
+        #        TOPPLEING CONTROL AND WARNING     #
+        ############################################
         
-        #print("marklist len: ", len(self.marklist))
-        """
+        # Still testing in MATLAB, will update soon!!!
+
+        m = 250
+        rho = 1.225
+        S = 6
+        g=9.81
+        gamma = 0.3897
+
+        alpha = np.deg2rad(360-psiw-ds)
+        
+        if alpha > np.pi: alpha -= np.pi
+        if -alpha < -np.pi: alpha += np.pi
+
+        cl = interpolate.splev(abs(alpha)/np.pi*180, self.cl_alpha)
+        cd = interpolate.splev(abs(alpha)/np.pi*180, self.cd_alpha)
+
+        qS = 0.5 * rho* (Vw*0.5144) *(Vw*0.5144) *S
+        D = qS * (cd + 0.05)
+        L = qS * cl
+
+        # Sail Moment
+        beta = np.pi - atan2(cl,cd) - alpha
+        F_sail = sqrt(L*L+D*D)*cos(pi/2-gamma-beta)
+        if L < 0: F_sail *= -1
+        M_sail = F_sail*2.8
+
+        # Mass Moment
+        M_mass = m * g * 3.3 * sin(gamma)
+
+        # Returning Moment
+        delta = self.tiller_gui['value']
+        if delta < 0.0005 and delta >=0: R = -11200
+        elif delta > -0.0005 and delta <=0: R = 11200
+        else: R = -5.6/delta
+
+        Fr = m * (V*0.5144)*(V*0.5144) / R * cos(delta-gamma)
+        M_r = Fr*0.8
+        Vw_ms = Vw*0.5144
+        alpha_deg = np.rad2deg(alpha)
+        print("M_r: %.2f" %M_r,"  Vw: %.2f" %Vw_ms,"  psiw: %.2f" %psiw,"  alpha: %.2f" %alpha_deg,"F_sail: %.2f" %F_sail,"  M_sail: %.2f" %M_sail)
+        if (M_mass - abs(M_r + M_sail)) > 0:
+            print("safe\n")
+        else:
+            print("Topple warning!!\n")
+
+
+        #########################################
+        #        TACKING and MARK OPERATION     #
+        #########################################
+        
+        # Hey Masa! Here's some example codes to read mark positions:
+
+        # Read Mark Position from marklist
+
         if len(self.marklist) != 0:
-            #print("marklist[0]: ", self.marklist[0])
             print("mark1 info: ", self.marklist[1])
-            for i in self.marklist:
+            for i in self.marklist:                
                 #print("mark1 position: ", self.marklist[1][3])
                 m_pos1 = self.marklist[1][3]
+                mark1_x = m_pos1[0]
+                mark1_y = m_pos1[1]
+                
                 #print("mark2 position: ", self.marklist[2][3])
                 m_pos2 = self.marklist[2][3]
+                mark2_x = m_pos2[0]
+                mark2_y = m_pos2[1]
+                
                 #print("mark3 position: ", self.marklist[3][3])
                 m_pos3 = self.marklist[3][3]
+                mark3_x = m_pos3[0]
+                mark3_y = m_pos3[1]
+                
                 #print("mark4 position: ", self.marklist[4][3])
                 m_pos4 = self.marklist[4][3]
-            print ("boat position: %.2f , %.2f" %(x, y))
+                mark4_x = m_pos4[0]
+                mark4_y = m_pos4[1]
+            
             print ("relative position to mark1: %.2f , %.2f" %(self.marklist[1][3][0]-x, self.marklist[1][3][1]-y))
             print ("distance to mark1: %.2f" %(sqrt(pow(self.marklist[1][3][0]-x,2)+pow(self.marklist[1][3][1]-y,2))))
-                
-        """
-        
-        # Define Next Mark and calculate the direction(psim)/range(R)/relative speed(Vr) to the next mark (by MASA, 04/18/2020)
-        #if sqrt(((x - start_x) * map_scale_x)**2 + ((y - start_y) * map_scale_y)**2) < 50:
-        #    NextMark = 1
-        
-        NextMark = 1
-        if NextMark == 2:
+
+
+        # Next Mark Button $ Message, and set the mark's position
+        # NextMark =4                  #initialize (temp)
+
+        if NextMark == 1:
+            Mark_x = mark1_x
+            Mark_y = mark1_y
+            # self.NextMark_display.text = "Go to Mark 1"
+        elif NextMark == 2:
             Mark_x = mark2_x
             Mark_y = mark2_y
+            # self.NextMark_display.text = "Go to Mark 2"
         elif NextMark == 3:
             Mark_x = mark3_x
             Mark_y = mark3_y
+            # self.NextMark_display.text = "Go to Mark 3"
         elif NextMark == 4:
-            Mark_x = goal_x
-            Mark_y = goal_y
-        elif NextMark == 5:
+            Mark_x = mark4_x
+            Mark_y = mark4_y
+            # self.NextMark_display.text = "Go to Finish line"
+        else:
             Mark_x = 0
             Mark_y = 0
-        else:
-            NextMark = 1
-            Mark_x = mark1_x
-            Mark_y = mark1_y
+            # self.NextMark_display.text = "FINISH !!!!"
             
-            
-        R = sqrt(((x - Mark_x) * map_scale_x)**2 + ((y - Mark_y) * map_scale_y)**2)
-        around = 15
+        R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
+        around = 200
 
         if NextMark == 1 and R > around:
             NextMark = 1
-            #self.NextMark_display.text = "Go to Mark 1"
         elif (NextMark == 1 and R <= around) or (NextMark == 2 and R > around):
             NextMark = 2
-            #self.NextMark_display.text = "Go to Mark 2"
         elif (NextMark == 2 and R <= around) or (NextMark == 3 and R > around):
             NextMark = 3
-            #self.NextMark_display.text = "Go to Mark 3"
-        elif (NextMark == 3 and R <= around) or (NextMark == 4 and R > around):
+        elif (NextMark == 3 and R <= around) or (NextMark == 4 and R > 20):
             NextMark = 4
-            #self.NextMark_display.text = "Go to Finish line"
         else:
-            NextMark = 5
-            #self.NextMark_display.text = "FINISH!!!!"
+            NextMark = 5   
         
-        theta = 180 - (degrees(atan((Mark_y - y)/(Mark_x - x))) - 90) - psi
+        #Calculate the direction to the next mark(psim) and range to the mark(R)
+        theta = (90 - degrees(atan2((Mark_y - map_y)* map_scale_y, (Mark_x - map_x)* map_scale_x))) - psi
         if theta < 0:
             psim = 360 + theta
         elif theta >= 360:
@@ -731,12 +1021,84 @@ class Hud(DirectFrame):
         else:
             psim = theta
         
+        Mark_dir = theta + psi
+        if Mark_dir < 0:
+            Mark_dir = Mark_dir + 360
+        elif Mark_dir >= 360:
+            Mark_dir = Mark_dir -360
+        
+        R = sqrt(((map_x - Mark_x) * map_scale_x)**2 + ((map_y - Mark_y) * map_scale_y)**2)
+        around2 = 100
+
+        self.compass_mark.setHpr(0,0, psim)         # update psim on compass rotation
+        self.compass_mark.setScale(0.42)
+        
+        
+        #Calculate the relative speed to the mark VMG(Vr)
         Vr = V * cos(radians(theta))
         
+        # Define the timing of the tack
+        TackAngle = 30 * 2
+        flg_tack_l = 0
+        flg_tack_r = 0
         
-        #Calculate best heading(psi_VMG)/mainsheet(ds_VMG) for getting VMG
-        TackAngle = 40 * 2
-        if (abs(psia - psim) <= TackAngle/2) or (abs(psia - psim) >= (360 - TackAngle/2)):       # UPwind(close-hauled)
+        if Mode == 2 or Mode == 4:
+            flg_tack_l = 0
+            flg_tack_r = 0
+            self.tack_display.text = "----"
+        elif (x <= (0-(-1250))/(490-(-480)) * y - 600 and -480 <= y <= 490) or (200 < y < 400 and x < 0):
+            flg_tack_l = 1
+            flg_tack_r = 0
+            self.tack_display.text = "Avoid Wall"
+        elif Mode == 1 and (TackAngle/2 + 15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)) and V * cos(radians(TackAngle - (psi-psim))) >= Vr * 1.5: 
+            flg_tack_l = 0
+            flg_tack_r = 1
+            self.tack_display.text = "Mark Position"
+        elif Mode == 3 and (TackAngle/2+15 < abs(psia - Mark_dir) < (360 - TackAngle/2 - 15)) and V * cos(radians(TackAngle - (psi-psim))) >= Vr * 1.5:
+            flg_tack_l = 1
+            flg_tack_r = 0
+            self.tack_display.text = "Mark Position"
+        #elif sqrt(((map_x - others[1]) * map_scale_x)**2 + ((map_y - others[2]) * map_scale_y)**2) < 15 and 0 <= psiw <= 180:
+        #    flg_tack_r = 1
+        #    self.tack_display.text = "Blanket"
+        #elif sqrt(((map_x - others[1]) * map_scale_x)**2 + ((map_y - others[2]) * map_scale_y)**2) < 15 and 180 < psiw < 360:
+        #    flg_tack_l = 1
+        #    self.tack_display.text = "Blanket"
+        # elif Mode == 1 and V * cos(radians(TackAngle - (psim-psi))) >= Vr * 1.5:
+        #     flg_tack_r = 1
+        #     self.tack_display.text = "Move away from Mark"
+        # elif Mode == 3 and V * cos(radians(TackAngle - (psi-psim))) >= Vr * 1.5:
+        #     flg_tack_l = 1
+        #     self.tack_display.text = "Move away from Mark"
+        else:
+            flg_tack_l = 0
+            flg_tack_r = 0
+            self.tack_display.text = "----"
+            
+        if flg_tack_l == 1:
+            self.tack_l_monitor_display.text = "Tack"
+        elif flg_tack_r == 1:
+            self.tack_r_monitor_display.text = "Tack"
+        else:
+            self.tack_l_monitor_display.text = ""
+            self.tack_r_monitor_display.text = ""
+            
+
+        # Calculate best heading(psi_VMG)/mainsheet(ds_VMG) for getting VMG
+        ds_VMG_l = 9999
+        ds_VMG_r = 9999
+        psi_VMG_l = 9999
+        psi_VMG_r = 9999
+        if R <= around2:                  # Mark roundabout
+            ds_VMG_l = 9999
+            ds_VMG_r = 9999
+            psi_VMG_l = 9999
+            psi_VMG_r = 9999
+            if V <= 15:
+                self.information_display.text = "Round! Fix Sail=0. Then move Tiller quickly to the Next Mark without touching."
+            elif V > 15:
+                self.information_display.text = "Round! Loose Sail in half. Then move Tiller quickly to the Next Mark without touching."
+        elif (abs(psia - Mark_dir) <= TackAngle/2+20) or (abs(psia - Mark_dir) >= (360 - TackAngle/2 - 20)):       # UPwind(close-hauled)
             ds_VMG_l = 0
             ds_VMG_r = 0
             if psia + TackAngle/2 >= 360:
@@ -747,42 +1109,47 @@ class Hud(DirectFrame):
                 psi_VMG_l = psia - TackAngle/2 + 360
             else:
                 psi_VMG_l = psia - TackAngle/2
-            self.information_display.text = "First set the sail = 0. Then control the tiller."
-        elif Mode == 2 or Mode == 4:        # DownWind(reaching)
+            if (flg_tack_l==1 or flg_tack_r==1) and V <= 15:
+                self.information_display.text = "Tack! Fix Sail=0. Then move Tiller quickly to the another side Green."
+            elif (flg_tack_l==1 or flg_tack_r==1) and V > 15:
+                self.information_display.text = "Tack! Loose Sail in half. Then move Tiller quickly to the another side Green."
+            else:
+                self.information_display.text = "Fix Sail=0. Then control Tiller on Green."
+        elif 90 < psiw < 270:        # DownWind(reaching)
             ds_VMG_l = 60
             ds_VMG_r = -60
-            psi_VMG_l = psim
-            psi_VMG_r = psim
-            self.information_display.text = "First set the tiller to the Mark. Then control the sail."
+            psi_VMG_l = Mark_dir
+            psi_VMG_r = Mark_dir
+            self.information_display.text = "Fix Sail=MAX. After going UP-wind & speeding UP, control Tiller to Next Mark. "
         else:                               # Abeam
-            ds_VMG_l = AOA - 30
-            ds_VMG_r = AOA + 30
-            psi_VMG_l = psim
-            psi_VMG_r = psim
-            self.information_display.text = "First set the tiller to the Mark. Then control the sail."
-            
-        self.Vr_display.text = "{:2.1f}" .format(Vr)
-        self.ds_VMG_l_display.text = "{:2.0f}" .format(ds_VMG_l)
-        self.ds_VMG_r_display.text = "{:2.0f}" .format(ds_VMG_r)
-        self.psi_VMG_l_display.text = "{:2.0f}" .format(psi_VMG_l)
-        self.psi_VMG_r_display.text = "{:2.0f}" .format(psi_VMG_r)
-        self.psia_display.text = "{:2.0f}" .format(psia)
-        self.psim_display.text = "{:2.0f}" .format(psim)
-        self.Mode_display.text = "{:2.0f}" .format(Mode)
-        self.Mode_display.text = "{:2.0f}" .format(Mode)
-        self.AOA_display.text = "{:2.0f}" .format(AOA)
-        self.psia_2_display.text = "{:2.0f}" .format(psia_2)
-        self.theta_display.text = "{:2.0f}" .format(theta)
-        #self.psiw_display.text = "{:2.0f}" .format(psiw)
-        self.Va_display.text = "{:2.1f}" .format(Va)
-        self.R_display.text = "{:2.1f}" .format(R)
-        self.NextMark_display.text = "{:2.1f}" .format(NextMark)
-        self.Vw_display.text = "{:2.1f}" .format(Vw)
-            
-        
-        
+            if psiw_ori < 0:
+                ds_VMG_r = psiw_ori + 30
+                if ds_VMG_r <= -60:
+                    ds_VMG_r = -60
+                elif ds_VMG_r >= 0:
+                    ds_VMG_r = 0
+            else:
+                ds_VMG_l = psiw_ori - 30
+                if ds_VMG_l >= 60:
+                    ds_VMG_l = 60
+                elif ds_VMG_l <= 0:
+                    ds_VMG_l = 0
+            psi_VMG_r = Mark_dir
+            psi_VMG_l = Mark_dir
+            self.information_display.text = "Set Tiller to Next Mark. Then control Sail on Green."
+
+        # For display of text values
+        self.Vr_display.text = "{:2.1f} kts" .format(Vr)
+        self.ds_VMG_l_display.text = "sail for VMG:{:2.0f}" .format(ds_VMG_l)
+        self.ds_VMG_r_display.text = "sail for VMG:{:2.0f}" .format(ds_VMG_r)
+        self.psi_VMG_l_display.text = "HDG for VMG:{:2.0f}" .format(psi_VMG_l)
+        self.psi_VMG_r_display.text = "HDG for VMG:{:2.0f}" .format(psi_VMG_r)
+        self.psia_display.text = "WIND : {:2.0f}" .format(psia)
+
+
         # return the control inputs as a pair of values
         return self.tiller_gui['value'], self.mainsheet_gui['value']
+    
     
 if __name__ == '__main__':
 
@@ -818,6 +1185,7 @@ if __name__ == '__main__':
                     pos=Vec3(-0.8, 0.4), frameSize = (0, 0.4, 0, 0.4),
                     frameColor=(1, 1, 1, 0.5))
             
+            
         def testupdate(self, task):
             '''
             drive the hud, callback
@@ -837,6 +1205,7 @@ if __name__ == '__main__':
             self.hud.update(x, y, psi, V, psiw, Vw, ds, others)
             
             return Task.cont
+
     
     # create and run
     testhud = TestHud()
